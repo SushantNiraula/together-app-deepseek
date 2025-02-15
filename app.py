@@ -72,6 +72,7 @@
 #         st.markdown(ai_response)
 
 import streamlit as st
+import re
 from utils import (
     call_together_ai, 
     extract_text_from_pdf, 
