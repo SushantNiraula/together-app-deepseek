@@ -1,4 +1,4 @@
 streamlit
 together
-dotenv
+python-dotenv
 pymupdf
