@@ -80,6 +80,7 @@ from utils import (
     get_user_chats, 
     create_new_chat
 )
+import re
 
 # Configure Streamlit page
 st.set_page_config(
@@ -92,19 +93,14 @@ st.set_page_config(
 # Custom CSS for better styling
 st.markdown("""
 <style>
-    /* Main container styling */
-    .main > div {
-        padding: 2rem 3rem;
-    }
-    
-    /* Chat message styling */
+    /* Chat Message Styling */
     .stChatMessage {
         background-color: #f7f7f8;
         border-radius: 0.5rem;
         padding: 1rem;
         margin: 0.5rem 0;
     }
-    
+
     .stChatMessage [data-testid="chatAvatarIcon-user"] {
         background-color: #1a7f37;
     }
@@ -113,19 +109,19 @@ st.markdown("""
         background-color: #0969da;
     }
     
-    /* Equation styling */
+    /* Equation Styling */
     .katex-display {
         margin: 1em 0;
         overflow-x: auto;
         overflow-y: hidden;
     }
-    
-    /* Sidebar styling */
+
+    /* Sidebar Styling */
     .css-1d391kg {
         padding: 2rem 1rem;
     }
     
-    /* Input box styling */
+    /* Input Box Styling */
     .stChatInputContainer {
         background-color: #ffffff;
         border: 1px solid #e1e4e8;
@@ -134,7 +130,7 @@ st.markdown("""
         margin-top: 1rem;
     }
     
-    /* Button styling */
+    /* Button Styling */
     .stButton > button {
         background-color: #0969da;
         color: white;
@@ -149,7 +145,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialize session state for chat management
+# Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "chat_title" not in st.session_state:
@@ -158,7 +154,7 @@ if "chat_title" not in st.session_state:
 # Sidebar configuration
 with st.sidebar:
     st.image("https://via.placeholder.com/150x50.png?text=AI+Chat", use_column_width=True)
-    st.title("Chat Settings")
+    st.title("⚙️ Chat Settings")
     
     # User authentication
     user = st.text_input("Username", key="username", placeholder="Enter your username")
@@ -166,42 +162,37 @@ with st.sidebar:
         st.warning("⚠️ Please enter a username to start chatting.")
         st.stop()
     
-    # Model selection with descriptions
-    st.subheader("🤖 Model Selection")
+    # Model selection
+    st.subheader("🤖 AI Model")
     model_choice = st.selectbox(
         "Choose AI Model",
         [
             "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
             "meta-llama/Llama-Vision-Free",
             "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
-        ],
-        help="Select the AI model for your conversation"
+        ]
     )
     
     # Advanced settings
     with st.expander("⚙️ Advanced Settings"):
         temperature = st.slider(
-            "Temperature",
+            "Creativity Level",
             min_value=0.1,
             max_value=1.0,
-            value=0.7,
-            help="Higher values make the output more creative but less focused"
+            value=0.7
         )
     
     # Document upload
-    st.subheader("📄 Document Upload")
-    uploaded_file = st.file_uploader(
-        "Upload PDF for context",
-        type=["pdf"],
-        help="Upload a PDF document to provide context for the conversation"
-    )
-    
+    st.subheader("📄 Upload PDF")
+    uploaded_file = st.file_uploader("Upload a PDF document", type=["pdf"])
+
     if uploaded_file:
         document_text = extract_text_from_pdf(uploaded_file)
         if document_text.startswith("Error"):
             st.error(document_text)
         else:
             st.success("✅ Document processed successfully!")
+            st.write(f"**Document Preview:** {document_text[:500]}...")  # Show a short preview
             if len(st.session_state.messages) == 0:
                 st.session_state.messages.append({
                     "role": "system",
@@ -209,14 +200,14 @@ with st.sidebar:
                 })
 
 # Main chat interface
-st.title("AI Chat Assistant 💬")
+st.title("💬 AI Chat Assistant")
 
 # Chat history management
 user_chats = get_user_chats(user)
-chat_options = ["New Chat 🌟"] + list(user_chats.keys())
+chat_options = ["🆕 New Chat"] + list(user_chats.keys())
 selected_chat = st.selectbox("💭 Select Conversation", chat_options)
 
-if selected_chat == "New Chat 🌟":
+if selected_chat == "🆕 New Chat":
     chat_id = create_new_chat()
     st.session_state.messages = []
 else:
@@ -229,26 +220,21 @@ for message in st.session_state.messages:
     if message["role"] != "system":
         with st.chat_message(message["role"]):
             content = message["content"]
-            # Check if content contains LaTeX equations
-            if "$" in content:
-                # Ensure proper rendering of inline and block equations
-                content = content.replace("$$", "$")
-                st.markdown(content)
-            else:
-                st.markdown(content)
+            # Handle LaTeX equations properly
+            content = content.replace("$$", "$")
+            st.markdown(content)
 
 # Chat input
-user_input = st.chat_input("Type your message here...")
+user_input = st.chat_input("💬 Type your message here...")
 if user_input:
     # Add user message
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
     
-    # Show typing indicator
+    # Show AI "Thinking..." effect
     with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            # Get AI response
+        with st.spinner("🤔 Thinking..."):
             ai_response = call_together_ai(
                 st.session_state.messages,
                 model_choice,
@@ -261,9 +247,8 @@ if user_input:
                 "content": ai_response
             })
             
-            # Display response with equation handling
-            if "$" in ai_response:
-                ai_response = ai_response.replace("$$", "$")
+            # Format AI response
+            ai_response = ai_response.replace("$$", "$")  # Ensure proper LaTeX display
             st.markdown(ai_response)
     
     # Save chat history
@@ -274,7 +259,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666;'>
-        <small>Built with Streamlit • Powered by Together AI</small>
+        <small>🚀 Built with Streamlit • Powered by Together AI</small>
     </div>
     """,
     unsafe_allow_html=True
