@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 from utils import (
     call_together_ai, 
@@ -74,12 +76,14 @@ if user_input:
 
     # Display AI's final answer
     with st.chat_message("assistant"):
-        if "$$" in ai_response:  
-            st.latex(ai_response)  # Display equations properly
+        # Detect and properly render LaTeX equations
+        if "$$" in ai_response:
+            for eq in ai_response.split("$$"):
+                if eq.strip():
+                    st.latex(eq.strip())  # Render each LaTeX equation separately
         elif "```python" in ai_response:  
             st.code(ai_response, language="python")  # Display code properly
         else:
             st.markdown(ai_response, unsafe_allow_html=True)
-
 
 
