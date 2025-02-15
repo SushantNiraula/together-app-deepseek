@@ -194,3 +194,4 @@ if prompt := st.chat_input("Message AI..."):
             st.markdown(response.get("response", ""))
     
     save_chat_history(user, st.session_state.current_chat, st.session_state.messages)
+
