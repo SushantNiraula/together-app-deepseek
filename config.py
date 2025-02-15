@@ -1,11 +1,10 @@
-import os
-from dotenv import load_dotenv
 
+import streamlit
 # Load environment variables
-load_dotenv()
+
 
 # API Configuration
-API_KEY = os.getenv("TOGETHER_API_KEY")
+API_KEY = st.secrets["TOGETHER_API_KEY"]
 
 # Debugging: Ensure API key is loaded
 if not API_KEY:
