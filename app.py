@@ -75,7 +75,6 @@
 
 
 
-
 import streamlit as st
 from utils import (
     call_together_ai, 
@@ -113,7 +112,8 @@ st.title("Together AI Chatbot 💬")
 st.sidebar.header("Settings")
 model_choice = st.sidebar.selectbox("Choose AI Model", [
     "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
-    "deepseek-ai/DeepSeek-Chat-V3-Free"
+    "meta-llama/Llama-Vision-Free",
+    "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
 ])
 temperature = st.sidebar.slider("Creativity (Temperature)", 0.1, 1.0, 0.7)
 
@@ -130,12 +130,7 @@ if uploaded_file:
 # Display previous messages in chat
 for message in st.session_state["messages"]:
     with st.chat_message(message["role"]):
-        if "$" in message["content"]:  # Check if response contains LaTeX math
-            st.latex(message["content"])
-        elif "```python" in message["content"]:  # Check if response contains code
-            st.code(message["content"], language="python")
-        else:
-            st.markdown(message["content"])
+        st.markdown(message["content"])
 
 # User input
 user_input = st.chat_input("Ask something...")
@@ -143,13 +138,18 @@ if user_input:
     st.session_state["messages"].append({"role": "user", "content": user_input})
 
     # Call API with full chat context
-    ai_response = call_together_ai(st.session_state["messages"], model_choice, temperature)
+    think_section, ai_response = call_together_ai(st.session_state["messages"], model_choice, temperature)
 
     st.session_state["messages"].append({"role": "assistant", "content": ai_response})
 
     # Save chat history
     save_chat_history(user, chat_id, st.session_state["messages"])
 
+    # Display AI's thought process separately
+    with st.expander("🤔 Thought Process"):
+        st.markdown(think_section)
+
+    # Display AI's final answer
     with st.chat_message("assistant"):
         if "$" in ai_response:  
             st.latex(ai_response)  # Display equations properly
@@ -157,3 +157,4 @@ if user_input:
             st.code(ai_response, language="python")  # Display code properly
         else:
             st.markdown(ai_response)
+
