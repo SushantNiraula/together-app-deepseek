@@ -162,8 +162,7 @@ if user_input:
         st.markdown(f"## 📖 {dynamic_title}")
 
         # **Detect and format LaTeX equations properly**
-        formatted_answer = re.sub(r"\[([^\]]+)\]", r"$$ \mathbf{\huge {\1}} $$", formatted_answer)  # Fix escape issue
+        formatted_answer = re.sub(r"\[([^\]]+)\]", r"$$ \\mathbf{\\huge \1} $$", formatted_answer)  # Fix escape issue
 
         # **Display the formatted content**
         st.markdown(formatted_answer, unsafe_allow_html=True)
-
