@@ -95,6 +95,15 @@ from config import API_KEY
 client = Together(api_key=API_KEY)
 CHAT_HISTORY_FILE = "chat_history.json"
 
+def extract_text_from_pdf(uploaded_file):
+    """Extract text from an uploaded PDF file."""
+    try:
+        with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+            text = "\n".join(page.get_text("text") for page in doc)
+        return text if text else "Error: No text found in the document."
+    except Exception as e:
+        return f"Error processing PDF: {str(e)}"
+
 def format_response_with_thinking(response_text):
     """
     Parse thinking and response from the AI output and format as a dictionary.
@@ -116,14 +125,13 @@ def format_response_with_thinking(response_text):
 
 def call_together_ai(messages, model="deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free", temperature=0.7):
     """
-    Enhanced API call with proper message handling.
+    Make an API call to Together AI and return a formatted response.
     """
     try:
         # Convert any dictionary messages to strings for API
         api_messages = []
         for msg in messages:
             if isinstance(msg["content"], dict):
-                # If it's a dict, use only the response part
                 content = msg["content"].get("response", "")
             else:
                 content = msg["content"]
@@ -133,7 +141,7 @@ def call_together_ai(messages, model="deepseek-ai/DeepSeek-R1-Distill-Llama-70B-
         if not any(msg["role"] == "system" for msg in api_messages):
             api_messages.insert(0, {
                 "role": "system",
-                "content": "You are a helpful assistant. When thinking about a response, enclose your thoughts in <think> tags. For mathematical equations, use LaTeX syntax with $ for inline math and $$ for display math. Format complex equations using display math for better readability."
+                "content": "You are a helpful assistant. When thinking about a response, enclose your thoughts in <think> tags. For mathematical equations, use LaTeX syntax with $ for inline math and $$ for display math."
             })
 
         response = client.chat.completions.create(
@@ -156,4 +164,57 @@ def call_together_ai(messages, model="deepseek-ai/DeepSeek-R1-Distill-Llama-70B-
             "response": f"An unexpected error occurred: {err}"
         }
 
-# Rest of the utils.py code remains the same...
+def save_chat_history(username, chat_id, messages):
+    """
+    Save chat history to a file.
+    """
+    try:
+        if os.path.exists(CHAT_HISTORY_FILE):
+            with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
+                chat_data = json.load(f)
+        else:
+            chat_data = {}
+
+        if username not in chat_data:
+            chat_data[username] = {}
+
+        chat_data[username][chat_id] = messages
+
+        with open(CHAT_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(chat_data, f, indent=4)
+    except Exception as e:
+        print(f"Error saving chat history: {e}")
+
+def load_chat_history(username, chat_id):
+    """
+    Load chat history from a file.
+    """
+    try:
+        if os.path.exists(CHAT_HISTORY_FILE):
+            with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
+                chat_data = json.load(f)
+            return chat_data.get(username, {}).get(chat_id, [])
+        return []
+    except Exception as e:
+        print(f"Error loading chat history: {e}")
+        return []
+
+def get_user_chats(username):
+    """
+    Retrieve a list of chat histories for a given user.
+    """
+    try:
+        if os.path.exists(CHAT_HISTORY_FILE):
+            with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as f:
+                chat_data = json.load(f)
+            return chat_data.get(username, {})
+        return {}
+    except Exception as e:
+        print(f"Error retrieving user chats: {e}")
+        return {}
+
+def create_new_chat():
+    """
+    Generate a new unique chat ID.
+    """
+    return f"chat_{int(os.time.time())}"
