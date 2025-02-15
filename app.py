@@ -74,16 +74,26 @@ if user_input:
     with st.expander("🤔 Thought Process"):
         st.markdown(think_section)
 
-    # Display AI's final answer
+    # # Display AI's final answer
+    # with st.chat_message("assistant"):
+    #     # Detect and properly render LaTeX equations
+    #     if "$$" in ai_response:
+    #         for eq in ai_response.split("$$"):
+    #             if eq.strip():
+    #                 st.latex(eq.strip())  # Render each LaTeX equation separately
+    #     elif "```python" in ai_response:  
+    #         st.code(ai_response, language="python")  # Display code properly
+    #     else:
+    #         st.markdown(ai_response, unsafe_allow_html=True)
+
+        # Display AI's final answer
     with st.chat_message("assistant"):
-        # Detect and properly render LaTeX equations
+    # Detect and properly render LaTeX equations
         if "$$" in ai_response:
             for eq in ai_response.split("$$"):
                 if eq.strip():
-                    st.latex(eq.strip())  # Render each LaTeX equation separately
+                    st.markdown(f"**\\( \\huge {eq.strip()} \\)**", unsafe_allow_html=True)  # Bold & Bigger Equations
         elif "```python" in ai_response:  
             st.code(ai_response, language="python")  # Display code properly
         else:
             st.markdown(ai_response, unsafe_allow_html=True)
-
-
