@@ -112,7 +112,7 @@ with st.sidebar:
     if st.button("+ New Chat", key="new_chat"):
         st.session_state.current_chat = create_new_chat()
         st.session_state.messages = []
-        st.experimental_rerun()
+        st.rerun()
     
     for chat_id, messages in user_chats.items():
         chat_title = next((msg["content"][:30] + "..." for msg in messages 
@@ -120,7 +120,7 @@ with st.sidebar:
         if st.button(f"📄 {chat_title}", key=chat_id):
             st.session_state.current_chat = chat_id
             st.session_state.messages = messages
-            st.experimental_rerun()
+            st.rerun()
     
     st.divider()
     
@@ -194,4 +194,3 @@ if prompt := st.chat_input("Message AI..."):
             st.markdown(response.get("response", ""))
     
     save_chat_history(user, st.session_state.current_chat, st.session_state.messages)
-
