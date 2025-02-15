@@ -134,7 +134,7 @@ user_input = st.chat_input("💬 Ask something...")
 if user_input:
     st.session_state["messages"].append({"role": "user", "content": user_input})
 
-    # Call AI API with full chat context
+    # Call API with full chat context
     ai_response = call_together_ai(st.session_state["messages"], model_choice, temperature)
 
     st.session_state["messages"].append({"role": "assistant", "content": ai_response})
@@ -149,17 +149,21 @@ if user_input:
     # Remove the <think>...</think> part from the final answer
     formatted_answer = re.sub(r"<think>.*?</think>", "", ai_response, flags=re.DOTALL).strip()
 
+    # **Extract a dynamic title from the AI response**
+    first_sentence = formatted_answer.split("\n")[0]  # Get the first sentence of the answer
+    dynamic_title = first_sentence[:60] + "..." if len(first_sentence) > 60 else first_sentence  # Limit length
+
     # **Display AI's thought process separately**
     with st.expander("🤔 Thought Process"):
         st.markdown(think_section)
 
-    # **Display AI's structured answer**
+    # **Display AI's structured answer with a dynamic title**
     with st.chat_message("assistant"):
-        st.markdown("## 📖 Maxwell's Equations")
+        st.markdown(f"## 📖 {dynamic_title}")
 
         # **Detect and format LaTeX equations properly**
-        equations = re.findall(r"\[([^\]]+)\]", formatted_answer)  # Extract equations inside [ ... ]
-        formatted_answer = re.sub(r"\[([^\]]+)\]", r"$$ \mathbf{\huge \1} $$", formatted_answer)  # Render in LaTeX
+        formatted_answer = re.sub(r"\[([^\]]+)\]", r"$$ \mathbf{\huge {\1}} $$", formatted_answer)  # Fix escape issue
 
         # **Display the formatted content**
         st.markdown(formatted_answer, unsafe_allow_html=True)
+
