@@ -82,25 +82,83 @@ from utils import (
     create_new_chat
 )
 
-# Previous CSS and page config code remains the same...
+# Configure Streamlit page
+st.set_page_config(
+    page_title="AI Chat Assistant",
+    page_icon="🤖",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "current_chat" not in st.session_state:
-    st.session_state.current_chat = None
+    st.session_state.current_chat = create_new_chat()
 
-# Previous sidebar code remains the same...
+# Sidebar
+with st.sidebar:
+    st.title("💬 AI Chat")
+    user = st.text_input("Username", placeholder="Enter username", key="username")
+    if not user:
+        st.warning("Please enter a username")
+        st.stop()
+    
+    st.divider()
+    
+    st.subheader("💭 Conversations")
+    user_chats = get_user_chats(user)
+    
+    if st.button("+ New Chat", key="new_chat"):
+        st.session_state.current_chat = create_new_chat()
+        st.session_state.messages = []
+        st.experimental_rerun()
+    
+    for chat_id, messages in user_chats.items():
+        chat_title = next((msg["content"][:30] + "..." for msg in messages 
+                          if msg["role"] == "user"), "New Conversation")
+        if st.button(f"📄 {chat_title}", key=chat_id):
+            st.session_state.current_chat = chat_id
+            st.session_state.messages = messages
+            st.experimental_rerun()
+    
+    st.divider()
+    
+    st.subheader("⚙️ Settings")
+    model_choice = st.selectbox(
+        "Model",
+        [
+            "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
+            "meta-llama/Llama-Vision-Free",
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+        ]
+    )
+    
+    temperature = st.slider("Temperature", 0.1, 1.0, 0.7)
+    
+    st.divider()
+    st.subheader("📄 Upload Context")
+    uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+    if uploaded_file:
+        with st.spinner("Processing document..."):
+            document_text = extract_text_from_pdf(uploaded_file)
+            if document_text.startswith("Error"):
+                st.error(document_text)
+            else:
+                st.success("Document processed!")
+                st.session_state.messages.append({
+                    "role": "system",
+                    "content": f"Context from document: {document_text[:1000]}..."
+                })
 
-# Display chat messages
+# Main chat interface
 for message in st.session_state.messages:
     if message["role"] != "system":
         with st.chat_message(message["role"]):
             if isinstance(message["content"], dict):
-                # Display thinking part
                 if message["content"].get("thinking"):
                     st.markdown(f"""
-                        <div class="thinking-section">
+                        <div style='background-color:#2A2B32;padding:1rem;border-left:4px solid #FFB454;'>
                             💭 <i>{message["content"]["thinking"]}</i>
                         </div>
                     """, unsafe_allow_html=True)
@@ -108,63 +166,31 @@ for message in st.session_state.messages:
             else:
                 content = message["content"]
             
-            # Format math content for better display
             st.markdown(content)
 
 # Chat input
 if prompt := st.chat_input("Message AI..."):
-    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    # Get and display assistant response
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             response = call_together_ai(
                 st.session_state.messages,
-                st.session_state.get("model_choice", "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"),
-                st.session_state.get("temperature", 0.7)
+                model_choice,
+                temperature
             )
             
-            # Store the full response object
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": response
-            })
+            st.session_state.messages.append({"role": "assistant", "content": response})
             
-            # Display thinking part if it exists
             if response.get("thinking"):
                 st.markdown(f"""
-                    <div class="thinking-section">
+                    <div style='background-color:#2A2B32;padding:1rem;border-left:4px solid #FFB454;'>
                         💭 <i>{response["thinking"]}</i>
                     </div>
                 """, unsafe_allow_html=True)
             
-            # Display main response
             st.markdown(response.get("response", ""))
     
-    # Save chat history
-    save_chat_history(
-        st.session_state.get("username", "default_user"),
-        st.session_state.current_chat,
-        st.session_state.messages
-    )
-
-# Add MathJax for better equation rendering
-st.markdown("""
-<script>
-window.MathJax = {
-    tex: {
-        inlineMath: [['$', '$']],
-        displayMath: [['$$', '$$']],
-        processEscapes: true,
-        processEnvironments: true
-    },
-    svg: {
-        fontCache: 'global'
-    }
-};
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"></script>
-""", unsafe_allow_html=True)
+    save_chat_history(user, st.session_state.current_chat, st.session_state.messages)
