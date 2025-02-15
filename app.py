@@ -80,7 +80,7 @@ from utils import (
     get_user_chats, 
     create_new_chat
 )
-import re
+import time
 
 # Configure Streamlit page
 st.set_page_config(
@@ -90,57 +90,145 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for ChatGPT-like dark theme
 st.markdown("""
 <style>
-    /* Chat Message Styling */
-    .stChatMessage {
-        background-color: #f7f7f8;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin: 0.5rem 0;
-    }
-
-    .stChatMessage [data-testid="chatAvatarIcon-user"] {
-        background-color: #1a7f37;
+    /* Global theme */
+    [data-testid="stAppViewContainer"] {
+        background-color: #343541;
+        color: #ECECF1;
     }
     
-    .stChatMessage [data-testid="chatAvatarIcon-assistant"] {
-        background-color: #0969da;
+    [data-testid="stSidebar"] {
+        background-color: #202123;
+        border-right: 1px solid #4A4B53;
     }
     
-    /* Equation Styling */
-    .katex-display {
-        margin: 1em 0;
-        overflow-x: auto;
-        overflow-y: hidden;
-    }
-
-    /* Sidebar Styling */
-    .css-1d391kg {
-        padding: 2rem 1rem;
+    /* Headers */
+    h1, h2, h3 {
+        color: #ECECF1 !important;
     }
     
-    /* Input Box Styling */
-    .stChatInputContainer {
-        background-color: #ffffff;
-        border: 1px solid #e1e4e8;
-        border-radius: 0.5rem;
-        padding: 0.5rem;
-        margin-top: 1rem;
-    }
-    
-    /* Button Styling */
-    .stButton > button {
-        background-color: #0969da;
-        color: white;
+    /* Chat messages */
+    [data-testid="stChatMessage"] {
+        background-color: #444654;
+        border-radius: 0;
         border: none;
-        border-radius: 0.25rem;
+        padding: 1.5rem;
+        margin: 0;
+        border-bottom: 1px solid #2A2B32;
+    }
+    
+    /* User messages */
+    [data-testid="stChatMessage"][data-testid="user"] {
+        background-color: #343541;
+    }
+    
+    /* Message input box */
+    .stChatInputContainer {
+        background-color: #343541 !important;
+        border-color: #4A4B53 !important;
+        padding: 1rem !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 2rem !important;
+    }
+    
+    .stChatInput {
+        background-color: #40414F !important;
+        border-color: #4A4B53 !important;
+        color: #ECECF1 !important;
+        border-radius: 0.5rem !important;
+    }
+    
+    /* Sidebar elements */
+    [data-testid="stSidebarUserContent"] {
+        padding-top: 1rem;
+    }
+    
+    .sidebar .sidebar-content {
+        background-color: #202123;
+    }
+    
+    /* Buttons and selectbox */
+    .stButton > button {
+        background-color: #202123;
+        color: #ECECF1;
+        border: 1px solid #4A4B53;
+        border-radius: 0.5rem;
         padding: 0.5rem 1rem;
+        width: 100%;
+        margin: 0.25rem 0;
     }
     
     .stButton > button:hover {
-        background-color: #0366d6;
+        background-color: #2A2B32;
+        border-color: #ECECF1;
+    }
+    
+    .stSelectbox > div {
+        background-color: #202123;
+        color: #ECECF1;
+        border: 1px solid #4A4B53;
+        border-radius: 0.5rem;
+    }
+    
+    /* Chat history buttons */
+    .chat-button {
+        background-color: transparent;
+        color: #ECECF1;
+        border: 1px solid #4A4B53;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        margin: 0.25rem 0;
+        width: 100%;
+        text-align: left;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+    
+    .chat-button:hover {
+        background-color: #2A2B32;
+    }
+    
+    /* File uploader */
+    [data-testid="stFileUploader"] {
+        background-color: #202123;
+        border-color: #4A4B53;
+        color: #ECECF1;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background-color: #202123;
+        color: #ECECF1;
+        border-color: #4A4B53;
+    }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #202123;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #4A4B53;
+        border-radius: 5px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+    
+    /* Markdown text */
+    .stMarkdown {
+        color: #ECECF1;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -148,24 +236,47 @@ st.markdown("""
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "chat_title" not in st.session_state:
-    st.session_state.chat_title = None
+if "current_chat" not in st.session_state:
+    st.session_state.current_chat = None
 
-# Sidebar configuration
+# Sidebar
 with st.sidebar:
-    st.image("https://via.placeholder.com/150x50.png?text=AI+Chat", use_column_width=True)
-    st.title("⚙️ Chat Settings")
+    st.title("💬 AI Chat")
     
     # User authentication
-    user = st.text_input("Username", key="username", placeholder="Enter your username")
+    user = st.text_input("Username", placeholder="Enter username", key="username")
     if not user:
-        st.warning("⚠️ Please enter a username to start chatting.")
+        st.warning("Please enter a username")
         st.stop()
     
-    # Model selection
-    st.subheader("🤖 AI Model")
+    st.divider()
+    
+    # Chat history management
+    st.subheader("💭 Conversations")
+    user_chats = get_user_chats(user)
+    
+    # New chat button
+    if st.button("+ New Chat", key="new_chat"):
+        st.session_state.current_chat = create_new_chat()
+        st.session_state.messages = []
+        st.experimental_rerun()
+    
+    # Display existing chats
+    for chat_id, messages in user_chats.items():
+        # Get the first user message as chat title, or use default
+        chat_title = next((msg["content"][:30] + "..." for msg in messages 
+                          if msg["role"] == "user"), "New Conversation")
+        if st.button(f"📄 {chat_title}", key=chat_id):
+            st.session_state.current_chat = chat_id
+            st.session_state.messages = messages
+            st.experimental_rerun()
+    
+    st.divider()
+    
+    # Model settings
+    st.subheader("⚙️ Settings")
     model_choice = st.selectbox(
-        "Choose AI Model",
+        "Model",
         [
             "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
             "meta-llama/Llama-Vision-Free",
@@ -173,94 +284,52 @@ with st.sidebar:
         ]
     )
     
-    # Advanced settings
-    with st.expander("⚙️ Advanced Settings"):
-        temperature = st.slider(
-            "Creativity Level",
-            min_value=0.1,
-            max_value=1.0,
-            value=0.7
-        )
+    temperature = st.slider("Temperature", 0.1, 1.0, 0.7)
     
     # Document upload
-    st.subheader("📄 Upload PDF")
-    uploaded_file = st.file_uploader("Upload a PDF document", type=["pdf"])
-
+    st.divider()
+    st.subheader("📄 Upload Context")
+    uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
     if uploaded_file:
-        document_text = extract_text_from_pdf(uploaded_file)
-        if document_text.startswith("Error"):
-            st.error(document_text)
-        else:
-            st.success("✅ Document processed successfully!")
-            st.write(f"**Document Preview:** {document_text[:500]}...")  # Show a short preview
-            if len(st.session_state.messages) == 0:
-                st.session_state.messages.append({
-                    "role": "system",
-                    "content": f"Context from uploaded document: {document_text[:1000]}..."
-                })
+        with st.spinner("Processing document..."):
+            document_text = extract_text_from_pdf(uploaded_file)
+            if document_text.startswith("Error"):
+                st.error(document_text)
+            else:
+                st.success("Document processed!")
+                if len(st.session_state.messages) == 0:
+                    st.session_state.messages.append({
+                        "role": "system",
+                        "content": f"Context from document: {document_text[:1000]}..."
+                    })
 
 # Main chat interface
-st.title("💬 AI Chat Assistant")
-
-# Chat history management
-user_chats = get_user_chats(user)
-chat_options = ["🆕 New Chat"] + list(user_chats.keys())
-selected_chat = st.selectbox("💭 Select Conversation", chat_options)
-
-if selected_chat == "🆕 New Chat":
-    chat_id = create_new_chat()
-    st.session_state.messages = []
-else:
-    chat_id = selected_chat
-    if st.session_state.messages != user_chats.get(chat_id, []):
-        st.session_state.messages = user_chats.get(chat_id, [])
+if not st.session_state.current_chat:
+    st.session_state.current_chat = create_new_chat()
 
 # Display chat messages
 for message in st.session_state.messages:
     if message["role"] != "system":
         with st.chat_message(message["role"]):
-            content = message["content"]
-            # Handle LaTeX equations properly
-            content = content.replace("$$", "$")
-            st.markdown(content)
+            st.markdown(message["content"])
 
 # Chat input
-user_input = st.chat_input("💬 Type your message here...")
-if user_input:
+if prompt := st.chat_input("Message DeepSeek..."):
     # Add user message
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
-        st.markdown(user_input)
+        st.markdown(prompt)
     
-    # Show AI "Thinking..." effect
+    # Get and display assistant response
     with st.chat_message("assistant"):
-        with st.spinner("🤔 Thinking..."):
-            ai_response = call_together_ai(
+        with st.spinner("Thinking..."):
+            response = call_together_ai(
                 st.session_state.messages,
                 model_choice,
                 temperature
             )
-            
-            # Add AI response
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": ai_response
-            })
-            
-            # Format AI response
-            ai_response = ai_response.replace("$$", "$")  # Ensure proper LaTeX display
-            st.markdown(ai_response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            st.markdown(response)
     
     # Save chat history
-    save_chat_history(user, chat_id, st.session_state.messages)
-
-# Footer
-st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; color: #666;'>
-        <small>🚀 Built with Streamlit • Powered by Together AI</small>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    save_chat_history(user, st.session_state.current_chat, st.session_state.messages)
