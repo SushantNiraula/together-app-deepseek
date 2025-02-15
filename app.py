@@ -163,15 +163,30 @@ if user_input:
     with st.expander("🤔 Thought Process"):
         st.markdown(think_section)
 
+    # # Display AI's final answer
+    # with st.chat_message("assistant"):
+    #     # Detect and properly render LaTeX equations
+    #     if "$$" in ai_response:
+    #         for eq in ai_response.split("$$"):
+    #             if eq.strip():
+    #                 # Make equations bigger and bold
+    #                 st.markdown(f'<p style="font-size:24px; font-weight:bold;">$$ {eq.strip()} $$</p>', unsafe_allow_html=True)
+    #     elif "```python" in ai_response:  
+    #         st.code(ai_response, language="python")  # Display code properly
+    #     else:
+    #         st.markdown(ai_response, unsafe_allow_html=True)
+
     # Display AI's final answer
     with st.chat_message("assistant"):
-        # Detect and properly render LaTeX equations
-        if "$$" in ai_response:
-            for eq in ai_response.split("$$"):
-                if eq.strip():
-                    # Make equations bigger and bold
-                    st.markdown(f'<p style="font-size:24px; font-weight:bold;">$$ {eq.strip()} $$</p>', unsafe_allow_html=True)
-        elif "```python" in ai_response:  
-            st.code(ai_response, language="python")  # Display code properly
+        if not ai_response.strip():
+        st.error("⚠️ No response received from the AI. Try again.")
         else:
-            st.markdown(ai_response, unsafe_allow_html=True)
+        # Detect and properly render LaTeX equations
+            if "$$" in ai_response:
+                equations = [eq.strip() for eq in ai_response.split("$$") if eq.strip()]
+                for eq in equations:
+                    st.markdown(f'<p style="font-size:24px; font-weight:bold; text-align:center;">$$ {eq} $$</p>', unsafe_allow_html=True)
+            elif "```python" in ai_response:  
+                st.code(ai_response, language="python")  # Display code properly
+            else:
+                st.markdown(ai_response, unsafe_allow_html=True)
