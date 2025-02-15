@@ -85,4 +85,3 @@ if user_input:
             st.code(ai_response, language="python")  # Display code properly
         else:
             st.markdown(ai_response, unsafe_allow_html=True)
- 
