@@ -104,25 +104,21 @@ st.markdown("""
         border-right: 1px solid #4A4B53;
     }
     
-    /* Math rendering */
-    .math-block {
+    /* Math equations */
+    .katex-display {
         background-color: #2D2E3A;
         padding: 1rem;
         border-radius: 0.5rem;
-        margin: 1rem 0;
-        font-size: 1.1em;
+        margin: 1rem 0 !important;
         border-left: 4px solid #10A37F;
     }
     
-    .math-inline {
-        background-color: #2D2E3A;
-        padding: 0.2rem 0.4rem;
-        border-radius: 0.3rem;
-        margin: 0 0.2rem;
+    .katex {
+        font-size: 1.1em;
     }
     
     /* Thinking section */
-    .thinking-block {
+    .thinking-section {
         background-color: #2A2B32;
         padding: 1rem;
         border-radius: 0.5rem;
@@ -144,27 +140,49 @@ st.markdown("""
         background-color: #343541;
     }
     
-    /* Rest of the CSS remains the same as before */
-    /* ... (previous CSS) ... */
-</style>
-
-<!-- Add MathJax for better equation rendering -->
-<script type="text/javascript">
-window.MathJax = {
-    tex: {
-        inlineMath: [['\\(', '\\)']],
-        displayMath: [['\\[', '\\]']],
-        processEscapes: true,
-        processEnvironments: true
-    },
-    options: {
-        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    /* Input box */
+    .stChatInputContainer {
+        background-color: #343541 !important;
+        border-color: #4A4B53 !important;
+        padding: 1rem !important;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 2rem !important;
     }
-};
-</script>
-<script type="text/javascript" id="MathJax-script" async
-    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-</script>
+    
+    .stChatInput {
+        background-color: #40414F !important;
+        border-color: #4A4B53 !important;
+        color: #ECECF1 !important;
+        border-radius: 0.5rem !important;
+    }
+    
+    /* Sidebar elements */
+    .sidebar .sidebar-content {
+        background-color: #202123;
+    }
+    
+    .stButton > button {
+        background-color: #202123;
+        color: #ECECF1;
+        border: 1px solid #4A4B53;
+        border-radius: 0.5rem;
+        width: 100%;
+        margin: 0.25rem 0;
+    }
+    
+    .stButton > button:hover {
+        background-color: #2A2B32;
+    }
+    
+    .stSelectbox > div {
+        background-color: #202123;
+        color: #ECECF1;
+        border: 1px solid #4A4B53;
+    }
+</style>
 """, unsafe_allow_html=True)
 
 # Initialize session state
@@ -173,10 +191,66 @@ if "messages" not in st.session_state:
 if "current_chat" not in st.session_state:
     st.session_state.current_chat = None
 
-# Sidebar configuration
+# Sidebar
 with st.sidebar:
-    # ... (previous sidebar code remains the same) ...
-    pass
+    st.title("💬 AI Chat")
+    
+    # User authentication
+    user = st.text_input("Username", placeholder="Enter username", key="username")
+    if not user:
+        st.warning("Please enter a username")
+        st.stop()
+    
+    st.divider()
+    
+    # Chat history
+    st.subheader("💭 Conversations")
+    user_chats = get_user_chats(user)
+    
+    if st.button("+ New Chat", key="new_chat"):
+        st.session_state.current_chat = create_new_chat()
+        st.session_state.messages = []
+        st.experimental_rerun()
+    
+    for chat_id, messages in user_chats.items():
+        chat_title = next((msg["content"][:30] + "..." for msg in messages 
+                          if msg["role"] == "user"), "New Conversation")
+        if st.button(f"📄 {chat_title}", key=chat_id):
+            st.session_state.current_chat = chat_id
+            st.session_state.messages = messages
+            st.experimental_rerun()
+    
+    st.divider()
+    
+    # Model settings
+    st.subheader("⚙️ Settings")
+    model_choice = st.selectbox(
+        "Model",
+        [
+            "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
+            "meta-llama/Llama-Vision-Free",
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+        ]
+    )
+    
+    temperature = st.slider("Temperature", 0.1, 1.0, 0.7)
+    
+    # Document upload
+    st.divider()
+    st.subheader("📄 Upload Context")
+    uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
+    if uploaded_file:
+        with st.spinner("Processing document..."):
+            document_text = extract_text_from_pdf(uploaded_file)
+            if document_text.startswith("Error"):
+                st.error(document_text)
+            else:
+                st.success("Document processed!")
+                if len(st.session_state.messages) == 0:
+                    st.session_state.messages.append({
+                        "role": "system",
+                        "content": f"Context from document: {document_text[:1000]}..."
+                    })
 
 # Main chat interface
 if not st.session_state.current_chat:
@@ -187,34 +261,18 @@ for message in st.session_state.messages:
     if message["role"] != "system":
         with st.chat_message(message["role"]):
             if isinstance(message["content"], dict):
-                # Display thinking part if it exists
+                # Display thinking part
                 if message["content"].get("thinking"):
                     st.markdown(f"""
-                        <div class="thinking-block">
+                        <div class="thinking-section">
                             💭 <i>{message["content"]["thinking"]}</i>
                         </div>
                     """, unsafe_allow_html=True)
-                
-                # Display main response with enhanced math
-                content = message["content"]["response"]
+                content = message["content"].get("response", "")
             else:
                 content = message["content"]
             
-            # Wrap display math in special div
-            content = re.sub(
-                r'\\\\[\s\S]+?\\\\]',
-                lambda m: f'<div class="math-block">{m.group()}</div>',
-                content
-            )
-            
-            # Wrap inline math in special span
-            content = re.sub(
-                r'\\\\(.+?)\\\\)',
-                lambda m: f'<span class="math-inline">{m.group()}</span>',
-                content
-            )
-            
-            st.markdown(content, unsafe_allow_html=True)
+            st.markdown(content)
 
 # Chat input
 if prompt := st.chat_input("Message AI..."):
@@ -228,26 +286,22 @@ if prompt := st.chat_input("Message AI..."):
         with st.spinner("Thinking..."):
             response = call_together_ai(
                 st.session_state.messages,
-                st.session_state.get("model_choice", "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"),
-                st.session_state.get("temperature", 0.7)
+                model_choice,
+                temperature
             )
             
             st.session_state.messages.append({"role": "assistant", "content": response})
             
-            # Display thinking part if it exists
+            # Display thinking part
             if response.get("thinking"):
                 st.markdown(f"""
-                    <div class="thinking-block">
+                    <div class="thinking-section">
                         💭 <i>{response["thinking"]}</i>
                     </div>
                 """, unsafe_allow_html=True)
             
             # Display main response
-            st.markdown(response["response"], unsafe_allow_html=True)
+            st.markdown(response.get("response", ""))
     
     # Save chat history
-    save_chat_history(
-        st.session_state.get("username", "default_user"),
-        st.session_state.current_chat,
-        st.session_state.messages
-    )
+    save_chat_history(user, st.session_state.current_chat, st.session_state.messages)
