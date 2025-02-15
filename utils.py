@@ -97,10 +97,7 @@ def format_response(response):
     # Remove <think> from the main answer
     formatted_answer = re.sub(r"<think>.*?</think>", "", response, flags=re.DOTALL).strip()
 
-    # Convert LaTeX-style math notation
-    formatted_answer = formatted_answer.replace("$", "$$")  # Ensure math formatting
-
-    # Convert block equations for proper LaTeX rendering in Streamlit
-    formatted_answer = re.sub(r'\\boxed\{([^}]+)\}', r'$$\1$$', formatted_answer)
+    # Ensure proper LaTeX formatting for block equations
+    formatted_answer = re.sub(r'\[([^\]]+)\]', r'$$\1$$', formatted_answer)  # Convert [ ... ] to $$ ... $$
 
     return think_section, formatted_answer
