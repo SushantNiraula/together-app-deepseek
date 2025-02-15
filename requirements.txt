@@ -2,3 +2,4 @@ streamlit
 together
 python-dotenv
 pymupdf
+python-markdown-math
