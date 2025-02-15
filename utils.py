@@ -82,7 +82,6 @@
 #     import uuid
 #     return str(uuid.uuid4())  # Unique chat identifier
 
-
 from together import Together
 import fitz  # PyMuPDF for PDF handling
 import json
