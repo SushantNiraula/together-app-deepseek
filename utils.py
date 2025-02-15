@@ -213,8 +213,8 @@ def get_user_chats(username):
         print(f"Error retrieving user chats: {e}")
         return {}
 
+import time  # Add this import at the top
+
 def create_new_chat():
-    """
-    Generate a new unique chat ID.
-    """
-    return f"chat_{int(os.time.time())}"
+    """Generate a new unique chat ID."""
+    return f"chat_{int(time.time())}"
