@@ -80,6 +80,7 @@ from utils import (
     get_user_chats, 
     create_new_chat
 )
+import re
 
 # User authentication (optional)
 user = st.sidebar.text_input("Enter your username", key="username")
@@ -141,16 +142,24 @@ if user_input:
     # Save chat history
     save_chat_history(user, chat_id, st.session_state["messages"])
 
-    # Display AI response
+    # **Separate the "Thinking" section and the actual Answer**
+    think_match = re.search(r"<think>(.*?)</think>", ai_response, re.DOTALL)
+    think_section = think_match.group(1).strip() if think_match else "No explicit thinking process found."
+
+    # Remove the <think>...</think> part from the final answer
+    formatted_answer = re.sub(r"<think>.*?</think>", "", ai_response, flags=re.DOTALL).strip()
+
+    # **Display AI's thought process separately**
+    with st.expander("🤔 Thought Process"):
+        st.markdown(think_section)
+
+    # **Display AI's structured answer**
     with st.chat_message("assistant"):
         st.markdown("## 📖 Maxwell's Equations")
 
-        # Format response properly
-        if "$$" in ai_response:
-            equations = [eq.strip() for eq in ai_response.split("$$") if eq.strip()]
-            for eq in equations:
-                st.markdown(f'<p style="font-size:22px; font-weight:bold; text-align:center;">$$ {eq} $$</p>', unsafe_allow_html=True)
-        else:
-            # Ensure proper spacing and formatting
-            formatted_response = ai_response.replace("\n", "\n\n")  # Add spacing for readability
-            st.markdown(formatted_response, unsafe_allow_html=True)
+        # **Detect and format LaTeX equations properly**
+        equations = re.findall(r"\[([^\]]+)\]", formatted_answer)  # Extract equations inside [ ... ]
+        formatted_answer = re.sub(r"\[([^\]]+)\]", r"$$ \mathbf{\huge \1} $$", formatted_answer)  # Render in LaTeX
+
+        # **Display the formatted content**
+        st.markdown(formatted_answer, unsafe_allow_html=True)
